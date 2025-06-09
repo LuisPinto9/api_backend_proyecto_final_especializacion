@@ -1,0 +1,15 @@
+runtime: custom  # Indica que usas Dockerfile personalizado
+env: flex        # Usa el entorno flexible
+
+automatic_scaling:
+  min_num_instances: 1
+  max_num_instances: 2
+
+resources:
+  cpu: 2
+  memory_gb: 4
+  disk_size_gb: 10
+
+# Puedes establecer variables de entorno
+env_variables:
+  GOOGLE_APPLICATION_CREDENTIALS_BACK: "back-machine-learning-747766408645.json"
