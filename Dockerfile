@@ -19,6 +19,7 @@ RUN pip install --upgrade pip && \
         scikit-learn \
         numpy \
         shap \
+        xgboost \
         google-cloud-dialogflow \
         google-auth 
 
