@@ -20,19 +20,10 @@ app.add_middleware(
 )
 
 # Autenticación
-# credentials_info = json.loads(os.getenv("SERVICE_ACCOUNT_FILE"))
-# project_id = credentials_info["project_id"]
-# session_id = "session1"
-# language_code = "es"
-
-
-with open("asistenteuptcadne-458017-ef2133592378.json", "r") as f:
-    credentials_json_string = f.read()
-    credentials_info = json.loads(credentials_json_string)
-    project_id = credentials_info["project_id"]
-    session_id = "session1"
-    language_code = "es"
-
+credentials_info = json.loads(os.getenv("SERVICE_ACCOUNT_FILE"))
+project_id = credentials_info["project_id"]
+session_id = "session1"
+language_code = "es"
 
 # Modelo y datos base
 columnas_numericas = ['admin_page_qty', 'admin_duration_seconds', 'info_page_qty',
@@ -68,7 +59,6 @@ def detec_intent_texts_full(project_id, session_id, text, language_code):
         "confianza": confianza,
         "parametros": dict(parametros)
     }
-
 
 def completar_input_usuario_mejorado(input_parcial, columnas_modelo, columnas_numericas, df_normalize, scaler, k=5):
 
@@ -173,9 +163,7 @@ def predecir_y_mostrar_factores(
         "valores_utilizados_por_el_modelo": input_legible[columnas_modelo].to_dict(orient='records')[0],
         "factores_mas_relevantes": factores_df.head(top_n).to_dict(orient='records')
     }
-
     return resultado
-
 
 @app.post("/conversar")
 async def conversar2(request: Request):
@@ -194,7 +182,6 @@ async def conversar2(request: Request):
     except Exception as e:
         return {"error": str(e)}
 
-
 @app.get("/")
 async def home():
-    return JSONResponse(content="API para análisis de intención y predicción sin imágenes.")
+    return JSONResponse(content="API para la predicción de posibles usuarios compradores.")

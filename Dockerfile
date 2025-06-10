@@ -13,18 +13,16 @@ RUN chmod +x start.sh
 # Actualiza pip y instala dependencias
 RUN pip install --upgrade pip && \
     pip install \
-        tensorflow-cpu==2.15.0 \
-        tokenizers==0.14 \
         fastapi \
         uvicorn \
-        python-multipart \
+        pandas \
+        scikit-learn \
         numpy \
-        pillow \
-        requests \
+        shap \
         google-cloud-dialogflow \
         google-auth 
 
-# Expone el puerto que usará la app (Google Cloud Run requiere el 8080)
+# Expone el puerto que usará la app
 EXPOSE 8080
 
 # Comando por defecto al ejecutar el contenedor
