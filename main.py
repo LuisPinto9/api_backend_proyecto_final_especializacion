@@ -30,124 +30,35 @@ project_id = credentials_info["project_id"]
 session_id = "session1"
 language_code = "es"
 
-
 credentials = service_account.Credentials.from_service_account_info(credentials_info)
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-
-#chagtp-------------------------------
-
+# Utilización de ChatGPT para extracción de características
 client = OpenAI(api_key=openai.api_key)
 
 def extraer_variables_desde_mensaje(mensaje_usuario):
-  print("esto le llego al metodo", mensaje_usuario) 
-  assistant_instruction = """Tu tarea es extraer de un texto escrito por un usuario las variables que están explícitamente e implícitamente presentes. 
-  Devuelve solamente un JSON plano con las variables detectadas y sus valores, sin comentarios ni texto adicional.
+    with open("gpt_prompt.txt", "r", encoding="utf-8") as f:
+        assistant_instruction = f.read()
 
-  Estas son las variables del dataset: 
-  ['admin_page_qty', 'admin_duration_seconds', 'info_page_qty', 'info_duration_seconds', 'product_page_qty', 'product_duration_seconds', 'bounce_rate', 'exit_rate', 'page_value_amount', 'is_special_day', 'month_number', 'operating_system_name', 'browser_name', 'region_name', 'traffic_type', 'visitor_type', 'is_weekend', 'has_revenue']
+    response = client.chat.completions.create(
+        model="gpt-4.5-preview",
+        messages=[
+            {
+                "role": "system",
+                "content": assistant_instruction
+            },
+            {
+                "role": "user",
+                "content": mensaje_usuario
+            }
+        ],
+        temperature=1,
+        max_tokens=1500
+    )
+    json_str = response.choices[0].message.content.strip()
+    return json.loads(json_str)
 
-  Variables categóricas:
-  is_special_day: solo tiene valores de 0.0, 0.2, 0.4, 0.6, 0.8 y 1.0
-
-  visitor_type = {
-      'New_Visitor': 0,
-      'Returning_Visitor': 1,
-      'Other': 2
-  }
-
-  month_number = {
-      'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'June': 6,
-      'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
-  }
-
-  operating_system_name = {
-      'Windows': 1, 'MacOS': 2, 'Linux': 3, 'Android': 4, 'Chrome OS': 5,
-      'iOS': 6, 'BlackBerry OS': 7, 'Other / Desconocido': 8
-  }
-
-  browser_name = {
-      'Chrome': 1, 'Firefox': 2, 'Internet Explorer': 3, 'Safari': 4, 'Opera': 5,
-      'Edge': 6, 'Android Browser': 7, 'BlackBerry': 8,
-      'Mozilla Compatible Agent': 9, 'Netscape': 10, 'Maxthon': 11,
-      'UC Browser': 12, 'Other / Desconocido': 13
-  }
-
-  region_name = {
-      'Estambul': 1, 'Ankara': 2, 'İzmir': 3, 'Bursa': 4, 'Antalya': 5,
-      'Adana': 6, 'Konya': 7, 'Gaziantep': 8, 'Otros': 9
-  }
-
-  traffic_type = {
-      'Direct': 1, 'Organic Search': 2, 'Paid Search (AdWords)': 3, 'Referral': 4, 'Email': 5,
-      'Social': 6, 'Display Ads': 7, 'Affiliates': 8, 'Video': 9, 'Mobile App': 10,
-      'Other Advertising': 11, 'SMS Campaigns': 12, 'Content Syndication': 13,
-      'Internal (Sitio propio)': 14, 'Comparison Shopping Engine': 15,
-      'Push Notifications': 16, 'Influencer Marketing': 17,
-      'Marketplace (como Trendyol)': 18, 'Retargeting': 19,
-      'Offline Events / QR Codes': 20
-  }
-
-  Variables booleanas:
-  { 
-    'is_weekend': 0 o 1,
-    'has_revenue': 0 o 1 
-  }
-
-  Variables numéricas:
-  admin_page_qty: entero: de 0 a 27
-  admin_duration_seconds: float de 0 a 3398.75
-  info_page_qty: entero de 0 a 24
-  info_duration_seconds: float de 0 a 2549.38
-  product_page_qty: entero de 0 a 705
-  product_duration_seconds: float de 0 a 63973.51
-  bounce_rate: float de 0 a 0.2
-  exit_rate: float de 0 a 0.2
-  page_value_amount: float de 0 a 361.76
-
-  Ejemplo:
-  Entrada:
-  "Quiero saber si comprará un usuario que: me visitó en fin de semana, es un usuario recurrente y el valor de página es 3.5"
-  Salida:
-  {
-    "page_value_amount": 3.5,
-    "visitor_type": 1,
-    "is_weekend": 1
-  }
-
-
-
-  Devuelve solo el JSON plano sin ningún otro texto.
-  """
-
-  response = client.chat.completions.create(
-      model="gpt-4.5-preview",
-      messages=[
-          {
-              "role": "system",
-              "content": assistant_instruction
-          },
-          {
-              "role": "user",
-              "content": mensaje_usuario
-          }
-      ],
-      # text={
-      #     "format": {
-      #         "type": "text"
-      #     }
-      # },
-      temperature=1,
-      # max_output_tokens=2048,
-      # top_p=1,
-      # store=True
-      max_tokens=1500
-  )
-  json_str = response.choices[0].message.content.strip()
-  return json.loads(json_str)
-
-
-# Modelo y datos base------------------
+# Modelo y datos
 columnas_numericas = ['admin_page_qty', 'admin_duration_seconds', 'info_page_qty',
        'info_duration_seconds', 'product_page_qty', 'product_duration_seconds',
        'bounce_rate', 'exit_rate', 'page_value_amount', 'is_special_day']
@@ -168,6 +79,7 @@ def detec_intent_texts_full(project_id, session_id, text, language_code):
     text_input = dialogflow.TextInput(text=text, language_code=language_code)
     query_input = dialogflow.QueryInput(text=text_input)
     response = session_client.detect_intent(request={"session": session, "query_input": query_input})
+
   # Extraer información importante:
     fulfillment_text = response.query_result.fulfillment_text # texto que retorna el agente
     intent = response.query_result.intent.display_name # intención que retorna el agente
@@ -183,10 +95,7 @@ def detec_intent_texts_full(project_id, session_id, text, language_code):
     }
 
 def completar_input_usuario_mejorado(input_parcial, columnas_modelo, columnas_numericas, df_normalize, scaler, k=5):
-
-    """
-    Busca registros similares y promedia el resto de los campos.
-    """
+    # Busca registros similares y promedia el resto de los campos.
     df_filtrado = df_base.copy()
 
     # Filtrar por columnas presentes en el input
@@ -237,17 +146,11 @@ def completar_input_usuario_mejorado(input_parcial, columnas_modelo, columnas_nu
 
     return input_completo
 
-
 def predecir_y_mostrar_factores(
     input_parcial, modelo, columnas_modelo, columnas_numericas,
     df_normalize, scaler, top_n=18, k=5
 ):
-    """
-    Realiza la predicción de compra y devuelve un mensaje explicativo con los factores clave.
-    """
-
-    import pandas as pd
-    import shap
+    # Realiza la predicción de compra y devuelve un mensaje explicativo con los factores clave.
 
     # Completar input del usuario con KNN
     input_modelo = completar_input_usuario_mejorado(
@@ -272,6 +175,7 @@ def predecir_y_mostrar_factores(
         'columna': columnas_modelo,
         'importancia': shap_values[0]
     })
+
     ingresadas = set(input_parcial.keys())
     factores_df['tipo'] = factores_df['columna'].apply(lambda col: 'Usuario' if col in ingresadas else 'Imputado')
     factores_df = factores_df.reindex(factores_df.importancia.abs().sort_values(ascending=False).index)
@@ -281,8 +185,8 @@ def predecir_y_mostrar_factores(
     mensaje = []
 
     # Parte 1: Resultado principal
-    mensaje.append(f" Según el análisis del sistema, la probabilidad de compra para este visitante es de **{probabilidad * 100:.2f}%**.")
-    mensaje.append(f" Esto sugiere que el modelo predice una como clase: **{'Compra' if pred_clase == 1 else 'No compra'}**.\n")
+    mensaje.append(f"Según el análisis del sistema, la probabilidad de compra para este visitante es de {probabilidad * 100:.2f}%.")
+    mensaje.append(f"Esto sugiere que el modelo predice una como clase: {'Compra' if pred_clase == 1 else 'No compra'}.\n")
 
     # Parte 2: Características proporcionadas
     mensaje.append("Estas son las caracteristicas ingresadas por el usuaio sobre el visitante:")
@@ -290,22 +194,21 @@ def predecir_y_mostrar_factores(
         mensaje.append(f"- {k}: {v}")
 
     # Parte 3: Factores influyentes (separados por tipo)
-    mensaje.append(f"\n Principales factores ingresados por el usuario (top {top_n}):")
+    mensaje.append(f"\nPrincipales factores ingresados por el usuario (top {top_n}):")
     factores_usuario = factores_top[factores_top["tipo"] == "Usuario"].head(top_n)
     for i, fila in factores_usuario.iterrows():
         mensaje.append(f" - {fila['columna']:<25} {fila['importancia']:.6f}   Usuario")
 
-    mensaje.append(f"\n Principales factores imputados por el sistema (top {top_n}):")
+    mensaje.append(f"\nPrincipales factores imputados por el sistema (top {top_n}):")
     factores_imputados = factores_top[factores_top["tipo"] == "Imputado"].head(top_n)
     for i, fila in factores_imputados.iterrows():
-        mensaje.append(f" - {fila['columna']:<25} {fila['importancia']:.6f}   Imputado")
+        mensaje.append(f"- {fila['columna']:<25} {fila['importancia']:.6f}   Imputado")
 
-
-    # Parte 4: Recomendación básica (opcional)
+    # Parte 4: Recomendación
     if probabilidad >= 0.8:
-        mensaje.append("\n Recomendación: Este usuario muestra alta intención de compra. Considera activar promociones o recomendaciones personalizadas.")
+        mensaje.append("\nRecomendación: Este usuario muestra alta intención de compra. Considera activar promociones o recomendaciones personalizadas.")
     elif probabilidad <= 0.2:
-        mensaje.append("\n Recomendación: Este usuario muestra baja intención de compra. Revisa elementos críticos como duración o tipo de páginas vistas.")
+        mensaje.append("\nRecomendación: Este usuario muestra baja intención de compra. Revisa elementos críticos como duración o tipo de páginas vistas.")
 
     return "\n".join(mensaje)
 
@@ -317,7 +220,7 @@ async def conversar(request: Request):
         
         if not mensaje_usuario:
             return {"error": "Falta el mensaje."}
-        print("mensaje del ususario ",mensaje_usuario)
+
         # Ejecutar Dialogflow para detectar intención
         dialogflow_result = detec_intent_texts_full(
             project_id=project_id,
@@ -325,27 +228,27 @@ async def conversar(request: Request):
             text=mensaje_usuario,
             language_code=language_code
         )
+
         if dialogflow_result["intencion"]=="compra":
-          
 
-          # Extraer variables desde el mensaje usando GPT
-          try:
-              input_parcial = extraer_variables_desde_mensaje(mensaje_usuario)
-          except Exception as extraction_error:
-              return {
-                  "error": "No se pudieron extraer variables del mensaje.",
-                  "detalle": str(extraction_error)
-              }
+            # Extraer variables desde el mensaje usando GPT
+            try:
+                input_parcial = extraer_variables_desde_mensaje(mensaje_usuario)
+            except Exception as extraction_error:
+                return {
+                    "error": "No se pudieron extraer variables del mensaje.",
+                    "detalle": str(extraction_error)
+                }
 
-          # Realizar predicción con el modelo
-          resultado = predecir_y_mostrar_factores(
-              input_parcial=input_parcial,
-              modelo=modelo,
-              columnas_modelo=columnas_modelo,
-              columnas_numericas=columnas_numericas,
-              df_normalize=df_normalize,
-              scaler=scaler
-          )
+            # Realizar predicción con el modelo
+            resultado = predecir_y_mostrar_factores(
+                input_parcial=input_parcial,
+                modelo=modelo,
+                columnas_modelo=columnas_modelo,
+                columnas_numericas=columnas_numericas,
+                df_normalize=df_normalize,
+                scaler=scaler
+            )
         else:
           resultado = None
           input_parcial = None
@@ -356,7 +259,6 @@ async def conversar(request: Request):
 
     except Exception as e:
         return {"error": str(e)}
-
 
 @app.get("/")
 async def home():

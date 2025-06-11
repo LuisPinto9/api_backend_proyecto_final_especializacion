@@ -21,7 +21,8 @@ RUN pip install --upgrade pip && \
         shap \
         xgboost \
         google-cloud-dialogflow \
-        google-auth 
+        google-auth \
+        openia
 
 # Expone el puerto que usará la app
 EXPOSE 8080
