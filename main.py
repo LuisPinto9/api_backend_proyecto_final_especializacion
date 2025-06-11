@@ -166,19 +166,35 @@ def predecir_y_mostrar_factores(
     return resultado
 
 @app.post("/conversar")
-async def conversar2(request: Request):
+async def conversar(request: Request):
     try:
         datos = await request.json()
-        # Llamar a la función predecir_y_mostrar_factores con los datos
+        # Ejecutar Dialogflow para detectar intención
+        mensaje_usuario = datos.get("mensaje", "")
+        if mensaje_usuario:
+            dialogflow_result = detec_intent_texts_full(
+                project_id=project_id,
+                session_id=session_id,
+                text=mensaje_usuario,
+                language_code=language_code
+            )
+        else:
+            dialogflow_result = None
+
+        # Llamar a la función predecir_y_mostrar_factores con los datos (sin el campo 'mensaje')
+        input_parcial = {k: v for k, v in datos.items() if k != "mensaje"}
         resultado = predecir_y_mostrar_factores(
-            input_parcial=datos,
+            input_parcial=input_parcial,
             modelo=modelo,
             columnas_modelo=columnas_modelo,
             columnas_numericas=columnas_numericas,
             df_normalize=df_normalize,
             scaler=scaler
         )
-        return resultado
+        return {
+            "dialogflow": dialogflow_result,
+            "prediccion": resultado
+        }
     except Exception as e:
         return {"error": str(e)}
 
