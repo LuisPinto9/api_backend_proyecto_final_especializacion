@@ -7,6 +7,7 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.impute import KNNImputer
 import shap
+from google.oauth2 import service_account
 from google.cloud import dialogflow_v2 as dialogflow
 
 app = FastAPI()
