@@ -22,7 +22,7 @@ RUN pip install --upgrade pip && \
         xgboost \
         google-cloud-dialogflow \
         google-auth \
-        openia
+        openai
 
 # Expone el puerto que usará la app
 EXPOSE 8080
