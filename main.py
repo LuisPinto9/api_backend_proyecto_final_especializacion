@@ -1,3 +1,5 @@
+import openai
+from openai import OpenAI
 from fastapi import FastAPI, Form, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -28,7 +30,124 @@ project_id = credentials_info["project_id"]
 session_id = "session1"
 language_code = "es"
 
-# Modelo y datos base
+
+credentials = service_account.Credentials.from_service_account_info(credentials_info)
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+
+#chagtp-------------------------------
+
+client = OpenAI(api_key=openai.api_key)
+
+def extraer_variables_desde_mensaje(mensaje_usuario):
+  print("esto le llego al metodo", mensaje_usuario) 
+  assistant_instruction = """Tu tarea es extraer de un texto escrito por un usuario las variables que están explícitamente e implícitamente presentes. 
+  Devuelve solamente un JSON plano con las variables detectadas y sus valores, sin comentarios ni texto adicional.
+
+  Estas son las variables del dataset: 
+  ['admin_page_qty', 'admin_duration_seconds', 'info_page_qty', 'info_duration_seconds', 'product_page_qty', 'product_duration_seconds', 'bounce_rate', 'exit_rate', 'page_value_amount', 'is_special_day', 'month_number', 'operating_system_name', 'browser_name', 'region_name', 'traffic_type', 'visitor_type', 'is_weekend', 'has_revenue']
+
+  Variables categóricas:
+  is_special_day: solo tiene valores de 0.0, 0.2, 0.4, 0.6, 0.8 y 1.0
+
+  visitor_type = {
+      'New_Visitor': 0,
+      'Returning_Visitor': 1,
+      'Other': 2
+  }
+
+  month_number = {
+      'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'June': 6,
+      'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
+  }
+
+  operating_system_name = {
+      'Windows': 1, 'MacOS': 2, 'Linux': 3, 'Android': 4, 'Chrome OS': 5,
+      'iOS': 6, 'BlackBerry OS': 7, 'Other / Desconocido': 8
+  }
+
+  browser_name = {
+      'Chrome': 1, 'Firefox': 2, 'Internet Explorer': 3, 'Safari': 4, 'Opera': 5,
+      'Edge': 6, 'Android Browser': 7, 'BlackBerry': 8,
+      'Mozilla Compatible Agent': 9, 'Netscape': 10, 'Maxthon': 11,
+      'UC Browser': 12, 'Other / Desconocido': 13
+  }
+
+  region_name = {
+      'Estambul': 1, 'Ankara': 2, 'İzmir': 3, 'Bursa': 4, 'Antalya': 5,
+      'Adana': 6, 'Konya': 7, 'Gaziantep': 8, 'Otros': 9
+  }
+
+  traffic_type = {
+      'Direct': 1, 'Organic Search': 2, 'Paid Search (AdWords)': 3, 'Referral': 4, 'Email': 5,
+      'Social': 6, 'Display Ads': 7, 'Affiliates': 8, 'Video': 9, 'Mobile App': 10,
+      'Other Advertising': 11, 'SMS Campaigns': 12, 'Content Syndication': 13,
+      'Internal (Sitio propio)': 14, 'Comparison Shopping Engine': 15,
+      'Push Notifications': 16, 'Influencer Marketing': 17,
+      'Marketplace (como Trendyol)': 18, 'Retargeting': 19,
+      'Offline Events / QR Codes': 20
+  }
+
+  Variables booleanas:
+  { 
+    'is_weekend': 0 o 1,
+    'has_revenue': 0 o 1 
+  }
+
+  Variables numéricas:
+  admin_page_qty: entero: de 0 a 27
+  admin_duration_seconds: float de 0 a 3398.75
+  info_page_qty: entero de 0 a 24
+  info_duration_seconds: float de 0 a 2549.38
+  product_page_qty: entero de 0 a 705
+  product_duration_seconds: float de 0 a 63973.51
+  bounce_rate: float de 0 a 0.2
+  exit_rate: float de 0 a 0.2
+  page_value_amount: float de 0 a 361.76
+
+  Ejemplo:
+  Entrada:
+  "Quiero saber si comprará un usuario que: me visitó en fin de semana, es un usuario recurrente y el valor de página es 3.5"
+  Salida:
+  {
+    "page_value_amount": 3.5,
+    "visitor_type": 1,
+    "is_weekend": 1
+  }
+
+
+
+  Devuelve solo el JSON plano sin ningún otro texto.
+  """
+
+  response = client.chat.completions.create(
+      model="gpt-4.5-preview",
+      messages=[
+          {
+              "role": "system",
+              "content": assistant_instruction
+          },
+          {
+              "role": "user",
+              "content": mensaje_usuario
+          }
+      ],
+      # text={
+      #     "format": {
+      #         "type": "text"
+      #     }
+      # },
+      temperature=1,
+      # max_output_tokens=2048,
+      # top_p=1,
+      # store=True
+      max_tokens=1500
+  )
+  json_str = response.choices[0].message.content.strip()
+  return json.loads(json_str)
+
+
+# Modelo y datos base------------------
 columnas_numericas = ['admin_page_qty', 'admin_duration_seconds', 'info_page_qty',
        'info_duration_seconds', 'product_page_qty', 'product_duration_seconds',
        'bounce_rate', 'exit_rate', 'page_value_amount', 'is_special_day']
@@ -118,15 +237,19 @@ def completar_input_usuario_mejorado(input_parcial, columnas_modelo, columnas_nu
 
     return input_completo
 
+
 def predecir_y_mostrar_factores(
     input_parcial, modelo, columnas_modelo, columnas_numericas,
     df_normalize, scaler, top_n=18, k=5
 ):
     """
-    Realiza la predicción de compra y muestra los factores más influyentes.
+    Realiza la predicción de compra y devuelve un mensaje explicativo con los factores clave.
     """
 
-    # Completar input del usuario con valores similares
+    import pandas as pd
+    import shap
+
+    # Completar input del usuario con KNN
     input_modelo = completar_input_usuario_mejorado(
         input_parcial, columnas_modelo, columnas_numericas, df_normalize, scaler, k=k
     )
@@ -142,14 +265,9 @@ def predecir_y_mostrar_factores(
     # Calcular valores SHAP
     explainer = shap.TreeExplainer(modelo)
     shap_values_all = explainer.shap_values(input_modelo)
+    shap_values = shap_values_all[1] if isinstance(shap_values_all, list) else shap_values_all
 
-    # Manejar ambos casos: binario con lista o directamente array
-    if isinstance(shap_values_all, list):
-        shap_values = shap_values_all[1]  # Clase positiva
-    else:
-        shap_values = shap_values_all  # Solo una clase, array (1, n_features)
-
-    # Crear tabla de factores
+    # Tabla de factores
     factores_df = pd.DataFrame({
         'columna': columnas_modelo,
         'importancia': shap_values[0]
@@ -157,49 +275,88 @@ def predecir_y_mostrar_factores(
     ingresadas = set(input_parcial.keys())
     factores_df['tipo'] = factores_df['columna'].apply(lambda col: 'Usuario' if col in ingresadas else 'Imputado')
     factores_df = factores_df.reindex(factores_df.importancia.abs().sort_values(ascending=False).index)
+    factores_top = factores_df.head(top_n)
 
-    # Preparar resultado como diccionario para retornar
-    resultado = {
-        "probabilidad_compra": round(float(probabilidad), 4),
-        "clase_predicha": "Compra" if pred_clase == 1 else "No compra",
-        "caracteristicas_ingresadas": input_parcial,
-        "valores_utilizados_por_el_modelo": input_legible[columnas_modelo].to_dict(orient='records')[0],
-        "factores_mas_relevantes": factores_df.head(top_n).to_dict(orient='records')
-    }
-    return resultado
+    # Construir mensaje explicativo
+    mensaje = []
+
+    # Parte 1: Resultado principal
+    mensaje.append(f" Según el análisis del sistema, la probabilidad de compra para este visitante es de **{probabilidad * 100:.2f}%**.")
+    mensaje.append(f" Esto sugiere que el modelo predice una como clase: **{'Compra' if pred_clase == 1 else 'No compra'}**.\n")
+
+    # Parte 2: Características proporcionadas
+    mensaje.append("Estas son las caracteristicas ingresadas por el usuaio sobre el visitante:")
+    for k, v in input_parcial.items():
+        mensaje.append(f"- {k}: {v}")
+
+    # Parte 3: Factores influyentes (separados por tipo)
+    mensaje.append(f"\n Principales factores ingresados por el usuario (top {top_n}):")
+    factores_usuario = factores_top[factores_top["tipo"] == "Usuario"].head(top_n)
+    for i, fila in factores_usuario.iterrows():
+        mensaje.append(f" - {fila['columna']:<25} {fila['importancia']:.6f}   Usuario")
+
+    mensaje.append(f"\n Principales factores imputados por el sistema (top {top_n}):")
+    factores_imputados = factores_top[factores_top["tipo"] == "Imputado"].head(top_n)
+    for i, fila in factores_imputados.iterrows():
+        mensaje.append(f" - {fila['columna']:<25} {fila['importancia']:.6f}   Imputado")
+
+
+    # Parte 4: Recomendación básica (opcional)
+    if probabilidad >= 0.8:
+        mensaje.append("\n Recomendación: Este usuario muestra alta intención de compra. Considera activar promociones o recomendaciones personalizadas.")
+    elif probabilidad <= 0.2:
+        mensaje.append("\n Recomendación: Este usuario muestra baja intención de compra. Revisa elementos críticos como duración o tipo de páginas vistas.")
+
+    return "\n".join(mensaje)
 
 @app.post("/conversar")
 async def conversar(request: Request):
     try:
         datos = await request.json()
-        # Ejecutar Dialogflow para detectar intención
         mensaje_usuario = datos.get("mensaje", "")
-        if mensaje_usuario:
-            dialogflow_result = detec_intent_texts_full(
-                project_id=project_id,
-                session_id=session_id,
-                text=mensaje_usuario,
-                language_code=language_code
-            )
-        else:
-            dialogflow_result = None
-
-        # Llamar a la función predecir_y_mostrar_factores con los datos (sin el campo 'mensaje')
-        input_parcial = {k: v for k, v in datos.items() if k != "mensaje"}
-        resultado = predecir_y_mostrar_factores(
-            input_parcial=input_parcial,
-            modelo=modelo,
-            columnas_modelo=columnas_modelo,
-            columnas_numericas=columnas_numericas,
-            df_normalize=df_normalize,
-            scaler=scaler
+        
+        if not mensaje_usuario:
+            return {"error": "Falta el mensaje."}
+        print("mensaje del ususario ",mensaje_usuario)
+        # Ejecutar Dialogflow para detectar intención
+        dialogflow_result = detec_intent_texts_full(
+            project_id=project_id,
+            session_id=session_id,
+            text=mensaje_usuario,
+            language_code=language_code
         )
+        if dialogflow_result["intencion"]=="compra":
+          
+
+          # Extraer variables desde el mensaje usando GPT
+          try:
+              input_parcial = extraer_variables_desde_mensaje(mensaje_usuario)
+          except Exception as extraction_error:
+              return {
+                  "error": "No se pudieron extraer variables del mensaje.",
+                  "detalle": str(extraction_error)
+              }
+
+          # Realizar predicción con el modelo
+          resultado = predecir_y_mostrar_factores(
+              input_parcial=input_parcial,
+              modelo=modelo,
+              columnas_modelo=columnas_modelo,
+              columnas_numericas=columnas_numericas,
+              df_normalize=df_normalize,
+              scaler=scaler
+          )
+        else:
+          resultado = None
+          input_parcial = None
+
         return {
-            "dialogflow": dialogflow_result,
             "prediccion": resultado
         }
+
     except Exception as e:
         return {"error": str(e)}
+
 
 @app.get("/")
 async def home():
