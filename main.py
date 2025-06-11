@@ -21,6 +21,8 @@ app.add_middleware(
 
 # Autenticación
 credentials_info = json.loads(os.getenv("SERVICE_ACCOUNT_FILE"))
+credentials = service_account.Credentials.from_service_account_info(credentials_info)
+
 project_id = credentials_info["project_id"]
 session_id = "session1"
 language_code = "es"
@@ -41,7 +43,7 @@ explainer = shap.TreeExplainer(modelo)
 
 # Función Dialogflow
 def detec_intent_texts_full(project_id, session_id, text, language_code):
-    session_client = dialogflow.SessionsClient()
+    session_client = dialogflow.SessionsClient(credentials=credentials)
     session = session_client.session_path(project_id, session_id)
     text_input = dialogflow.TextInput(text=text, language_code=language_code)
     query_input = dialogflow.QueryInput(text=text_input)
