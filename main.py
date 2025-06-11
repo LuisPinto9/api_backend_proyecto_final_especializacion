@@ -254,6 +254,7 @@ async def conversar(request: Request):
           input_parcial = None
 
         return {
+            "dialogflow": dialogflow_result,
             "prediccion": resultado
         }
 
