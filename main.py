@@ -230,7 +230,6 @@ async def conversar(request: Request):
         )
 
         if dialogflow_result["intencion"]=="compra":
-
             # Extraer variables desde el mensaje usando GPT
             try:
                 input_parcial = extraer_variables_desde_mensaje(mensaje_usuario)
@@ -239,6 +238,53 @@ async def conversar(request: Request):
                     "error": "No se pudieron extraer variables del mensaje.",
                     "detalle": str(extraction_error)
                 }
+
+            # Realizar predicción con el modelo
+            resultado = predecir_y_mostrar_factores(
+                input_parcial=input_parcial,
+                modelo=modelo,
+                columnas_modelo=columnas_modelo,
+                columnas_numericas=columnas_numericas,
+                df_normalize=df_normalize,
+                scaler=scaler
+            )
+        else:
+          resultado = None
+          input_parcial = None
+
+        return {
+            "dialogflow": dialogflow_result,
+            "prediccion": resultado
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/conversar-test")
+async def conversar(request: Request):
+    try:
+        datos = await request.json()
+        mensaje_usuario = datos.get("mensaje", "")
+        
+        if not mensaje_usuario:
+            return {"error": "Falta el mensaje."}
+
+        # Ejecutar Dialogflow para detectar intención
+        dialogflow_result = detec_intent_texts_full(
+            project_id=project_id,
+            session_id=session_id,
+            text=mensaje_usuario,
+            language_code=language_code
+        )
+
+        if dialogflow_result["intencion"]=="compra":
+            
+            input_parcial =  {
+                "admin_page_qty": 12,
+                "product_page_qty": 42,
+                "month_number": 2,
+                "visitor_type": 1,
+            }
 
             # Realizar predicción con el modelo
             resultado = predecir_y_mostrar_factores(
