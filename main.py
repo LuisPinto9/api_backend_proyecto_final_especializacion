@@ -212,7 +212,7 @@ def predecir_y_mostrar_factores(
 
     return "\n".join(mensaje)
 
-@app.post("/conversar")
+@app.post("/conversar-disabled")
 async def conversar(request: Request):
     try:
         datos = await request.json()
