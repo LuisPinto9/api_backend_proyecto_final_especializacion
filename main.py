@@ -41,7 +41,7 @@ def extraer_variables_desde_mensaje(mensaje_usuario):
         assistant_instruction = f.read()
 
     response = client.chat.completions.create(
-        model="gpt-4.5-preview",
+        model="gpt-4.1-nano",
         messages=[
             {
                 "role": "system",
@@ -212,7 +212,7 @@ def predecir_y_mostrar_factores(
 
     return "\n".join(mensaje)
 
-@app.post("/conversar-disabled")
+@app.post("/conversar")
 async def conversar(request: Request):
     try:
         datos = await request.json()
