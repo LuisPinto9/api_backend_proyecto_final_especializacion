@@ -212,15 +212,119 @@ def predecir_y_mostrar_factores(
 
     return "\n".join(mensaje)
 
+#------nueva funcionalidad-------------
+significados_variables = {
+    "admin_page_qty": "Cantidad total de páginas administrativas que el usuario visitó durante la sesión. Estas páginas usualmente contienen información relacionada con la cuenta, políticas o secciones que no son productos.",    
+    "admin_duration_seconds": "Tiempo total, en segundos, que el usuario permaneció navegando en páginas administrativas durante su visita. Un mayor tiempo puede indicar búsqueda de información de soporte o confianza.",    
+    "info_page_qty": "Número de páginas informativas consultadas por el usuario. Estas páginas suelen contener detalles sobre productos, preguntas frecuentes, guías o contenido educativo.",    
+    "info_duration_seconds": "Tiempo en segundos que el usuario pasó leyendo páginas informativas. Puede ser un indicador del interés o evaluación previa antes de una posible compra.",    
+    "product_page_qty": "Número de páginas de productos visitadas. Este valor refleja el grado de exploración del catálogo que realizó el usuario.",    
+    "product_duration_seconds": "Duración total, en segundos, que el usuario permaneció visualizando productos. Un tiempo alto puede reflejar interés en realizar una compra.",    
+    "bounce_rate": "Proporción de sesiones en las que el usuario entró al sitio pero abandonó sin interactuar con más de una página. Una tasa alta puede indicar falta de interés o experiencia poco atractiva.",    
+    "exit_rate": "Proporción de veces que los usuarios abandonan el sitio desde una página específica. Es útil para detectar puntos de fuga en el recorrido del cliente.",    
+    "page_value_amount": "Valor económico estimado de cada página según el historial de conversiones. Cuantifica cuánto aporta una página promedio al ingreso.",    
+    "is_special_day": "Indica si la sesión ocurrió en un día especial como festivos, eventos o campañas. Estos días suelen tener comportamiento distinto en navegación o compras.",    
+    "month_number": "Número del mes en el que ocurrió la sesión (1 para enero, 12 para diciembre). Permite análisis estacionales o mensuales del comportamiento.",    
+    "operating_system_name": "Sistema operativo desde el cual el usuario accedió al sitio (como Windows, Mac, Android). Ayuda a adaptar la experiencia a diferentes plataformas.",    
+    "browser_name": "Navegador web utilizado por el usuario (como Chrome, Firefox, Safari). Puede afectar la compatibilidad o rendimiento del sitio.",    
+    "region_name": "Zona geográfica o ubicación desde la que se conectó el usuario. Es clave para segmentar comportamientos por región o país.",    
+    "traffic_type": "Fuente desde la cual llegó el visitante al sitio: puede ser tráfico directo, referido, campañas pagas, SEO, redes sociales, etc.",    
+    "visitor_type": "Clasifica al usuario como visitante nuevo o recurrente. Los visitantes recurrentes suelen tener mayor intención de compra.",    
+    "is_weekend": "Indica si la visita ocurrió durante un fin de semana. El comportamiento de los usuarios puede variar significativamente entre semana y fines de semana.",    
+    "has_revenue": "Indica si la sesión generó ingresos, es decir, si el usuario concretó una compra o acción de valor durante la visita."
+}
+variables_reales = [
+    'admin_page_qty', 'admin_duration_seconds', 'info_page_qty',
+    'info_duration_seconds', 'product_page_qty', 'product_duration_seconds',
+    'bounce_rate', 'exit_rate', 'page_value_amount', 'is_special_day',
+    'month_number', 'operating_system_name', 'browser_name', 'region_name',
+    'traffic_type', 'visitor_type', 'is_weekend', 'has_revenue'
+]
+
+df_original = pd.read_csv("df_dashboard.csv")
+
+def detectar_variables_traducidas(mensaje_usuario, variables_reales):
+    """
+    Usa ChatGPT para identificar qué variables del dataset están siendo mencionadas por el usuario en lenguaje natural.
+    """
+
+    prompt = f"""
+Eres un asistente que ayuda a detectar variables de un dataset a partir de una consulta en español.
+
+A continuación tienes una lista de nombres de variables del dataset:
+{variables_reales}
+
+Dado el siguiente mensaje del usuario:
+"{mensaje_usuario}"
+
+Devuélveme únicamente una lista en formato JSON con los nombres exactos de las variables del dataset que correspondan al mensaje del usuario. 
+Ignora mayúsculas, errores ortográficos menores y falta de tildes. No incluyas explicaciones, solo una lista JSON. Ejemplo de salida válida:
+["bounce_rate", "exit_rate"]
+"""
+
+    response = client.chat.completions.create(
+        model="gpt-4.1-nano",
+        messages=[
+            {
+                "role": "system",
+                "content": prompt
+            },
+            {
+                "role": "user",
+                "content": mensaje_usuario
+            }
+        ],
+        temperature=1,
+        max_tokens=1500
+    )
+    json_str = response.choices[0].message.content.strip()
+    print(json_str)
+    return json.loads(json_str)
+
+def generar_respuesta_informativa(variable, df_original, columnas_numericas, significados_variables):
+    try:
+        if variable not in df_original.columns:
+            return f"La variable '{variable}' no se encuentra en los datos."
+
+        if variable in columnas_numericas:
+            serie = df_original[variable]
+            respuesta = f" La variable '{variable}' es numérica.\n"
+            respuesta += f"- Mínimo: {serie.min():.2f}\n"
+            respuesta += f"- Máximo: {serie.max():.2f}\n"
+            respuesta += f"- Media: {serie.mean():.2f}\n"
+            respuesta += f"- Mediana: {serie.median():.2f}\n"
+            respuesta += f"- Suma: {serie.sum():.2f}\n"
+            respuesta += f"- Desviación estándar: {serie.std():.2f}\n"
+        else:
+            serie = df_original[variable].astype(str)
+            valores_unicos = serie.unique()
+            respuesta = f" La variable '{variable}' es categórica.\n"
+            respuesta += f"- Valores únicos ({len(valores_unicos)}): {', '.join(valores_unicos[:10])}"
+            if len(valores_unicos) > 5:
+                respuesta += f", entre otros.\n"
+            else:
+                respuesta += "\n"
+            respuesta += f"- Valor más frecuente: {serie.mode()[0]}\n"
+        
+        # Añadir significado si está disponible
+        if significados_variables and variable in significados_variables:
+            respuesta = f" *Significado:* {significados_variables[variable]}\n\n" + respuesta
+
+        return respuesta
+    
+    except Exception as e:
+        return f" Error al procesar la variable '{variable}': {str(e)}"
+
 @app.post("/conversar")
 async def conversar(request: Request):
     try:
         datos = await request.json()
         mensaje_usuario = datos.get("mensaje", "")
-        
+
         if not mensaje_usuario:
             return {"error": "Falta el mensaje."}
 
+        print("mensaje del ususario ",mensaje_usuario)
         # Ejecutar Dialogflow para detectar intención
         dialogflow_result = detec_intent_texts_full(
             project_id=project_id,
@@ -228,26 +332,48 @@ async def conversar(request: Request):
             text=mensaje_usuario,
             language_code=language_code
         )
-
         if dialogflow_result["intencion"]=="compra":
-            # Extraer variables desde el mensaje usando GPT
-            try:
-                input_parcial = extraer_variables_desde_mensaje(mensaje_usuario)
-            except Exception as extraction_error:
-                return {
-                    "error": "No se pudieron extraer variables del mensaje.",
-                    "detalle": str(extraction_error)
-                }
 
-            # Realizar predicción con el modelo
-            resultado = predecir_y_mostrar_factores(
-                input_parcial=input_parcial,
-                modelo=modelo,
-                columnas_modelo=columnas_modelo,
-                columnas_numericas=columnas_numericas,
-                df_normalize=df_normalize,
-                scaler=scaler
-            )
+
+          # Extraer variables desde el mensaje usando GPT
+          try:
+              input_parcial = extraer_variables_desde_mensaje(mensaje_usuario)
+          except Exception as extraction_error:
+              return {
+                  "error": "No se pudieron extraer variables del mensaje.",
+                  "detalle": str(extraction_error)
+              }
+
+          # Realizar predicción con el modelo
+          resultado = predecir_y_mostrar_factores(
+              input_parcial=input_parcial,
+              modelo=modelo,
+              columnas_modelo=columnas_modelo,
+              columnas_numericas=columnas_numericas,
+              df_normalize=df_normalize,
+              scaler=scaler
+          )
+        elif dialogflow_result["intencion"] == "informativa":
+            variables = columnas_modelo  # puedes limitar solo a relevantes
+            variables_detectadas = detectar_variables_traducidas(mensaje_usuario, variables_reales)
+            print("variables_detectadas",variables_detectadas)
+            if variables_detectadas:
+                respuestas = [
+                    generar_respuesta_informativa(var, df_original, columnas_numericas, significados_variables)
+                    for var in variables_detectadas
+                ]
+                
+                resultado = "\n\n".join(respuestas)
+                # print("respuesta_final iff",resultado)
+
+            else:
+                 resultado = (
+                    "No pude identificar ninguna variable en tu mensaje. "
+                    "Por favor intenta reformular tu pregunta, por ejemplo: "
+                    "'que significa el atributo: tasa de salida'."
+                )
+            # print("respuesta_final",resultado)
+            
         else:
           resultado = None
           input_parcial = None
