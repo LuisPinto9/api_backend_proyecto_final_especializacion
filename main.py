@@ -186,7 +186,7 @@ def predecir_y_mostrar_factores(
 
     # Parte 1: Resultado principal
     mensaje.append(f"Según el análisis del sistema, la probabilidad de compra para este visitante es de {probabilidad * 100:.2f}%.")
-    mensaje.append(f"Esto sugiere que el modelo predice una como clase: {'Compra' if pred_clase == 1 else 'No compra'}.\n")
+    mensaje.append(f"Esto indica que el modelo predice que pertenece a la clase: {'Compra' if pred_clase == 1 else 'No compra'}.\n")
 
     # Parte 2: Características proporcionadas
     mensaje.append("Estas son las caracteristicas ingresadas por el usuaio sobre el visitante:")
